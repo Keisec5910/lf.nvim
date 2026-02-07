@@ -9,10 +9,8 @@ end
 local cmd = vim.cmd
 local api = vim.api
 local fn = vim.fn
-local uv = vim.loop
+local uv = vim.uv
 local o = vim.o
-local fs = utils.fs
-local map = utils.map
 
 local Config = require("lf.config")
 -- local promise = require("promise")
@@ -67,7 +65,7 @@ end
 ---@return Lf
 function Lf:new(config)
     if config then
-        self.cfg = Config:override(config)
+        self.cfg = Config:merge(config)
     else
         self.cfg = Config.data
     end
@@ -114,18 +112,43 @@ function Lf:start(path)
     self:__open_in(path or self.cfg.dir)
     self:__set_cmd_wrapper()
 
-    self.term.on_open = function(term)
-        self:__on_open(term)
-    end
+    if self.cfg.hijack_netrw then
+        -- Open in current window (replace netrw buffer)
+        self.bufnr = api.nvim_get_current_buf()
+        self.winid = api.nvim_get_current_win()
+        
+        -- Configure buffer for terminal
+        fn.termopen(self.term.cmd, {
+            on_exit = function(_, _, _)
+                self:__callback_hijack()
+            end
+        })
+        cmd("startinsert")
+        
+        -- Set buffer options
+        vim.bo[self.bufnr].bufhidden = "wipe"
+        vim.bo[self.bufnr].filetype = "lf"
+        
+        -- Setup mappings
+        if self.cfg.mappings then
+             -- Hijack mode needs simpler mappings since it's a raw terminal
+             -- We can reuse the callback logic but need to adapt it
+        end
+    else
+        -- Standard floating window (toggleterm)
+        self.term.on_open = function(term)
+            self:__on_open(term)
+        end
 
-    self.term.on_exit = function(term, _, _, _)
-        self:__callback(term)
-        uv.fs_unlink(self.tmp_id)
-        uv.fs_unlink(self.tmp_lastdir)
-        uv.fs_unlink(self.tmp_sel)
-    end
+        self.term.on_exit = function(term, _, _, _)
+            self:__callback(term)
+            uv.fs_unlink(self.tmp_id)
+            uv.fs_unlink(self.tmp_lastdir)
+            uv.fs_unlink(self.tmp_sel)
+        end
 
-    self.term:open()
+        self.term:open()
+    end
 end
 
 ---@private
@@ -147,8 +170,8 @@ function Lf:__open_in(path)
     end
 
     -- Should be fine, but just checking
-    if stat and not stat.type == "directory" then
-        built = fs.dirname(built)
+    if stat and stat.type ~= "directory" then
+        built = vim.fs.dirname(built)
     end
 
     self.term.dir = built
@@ -168,7 +191,7 @@ function Lf:__set_cmd_wrapper()
     local open_on = self.term.dir
     if
         self.cfg.focus_on_open
-        and fs.dirname(self.curfile) == self.term.dir
+        and vim.fs.dirname(self.curfile) == self.term.dir
     then
         open_on = self.curfile
     end
@@ -211,7 +234,7 @@ function Lf:__on_open(term)
     -- Not sure if this works
     if self.cfg.mappings then
         if self.cfg.escape_quit then
-            map(
+            vim.keymap.set(
                 "t",
                 "<Esc>",
                 "<Cmd>q<CR>",
@@ -220,7 +243,7 @@ function Lf:__on_open(term)
         end
 
         for key, mapping in pairs(self.cfg.default_actions) do
-            map("t", key, function()
+            vim.keymap.set("t", key, function()
                 -- Change default_action for easier reading in the callback
                 self.action = mapping
 
@@ -232,7 +255,7 @@ function Lf:__on_open(term)
         end
 
         if self.cfg.layout_mapping then
-            map("t", self.cfg.layout_mapping, function()
+            vim.keymap.set("t", self.cfg.layout_mapping, function()
                 api.nvim_win_set_config(self.winid, utils.get_view(
                     self.cfg.views[self.view_idx],
                     self.bufnr,
@@ -291,6 +314,59 @@ function Lf:__callback(term)
     vim.defer_fn(function()
         self.action = self.cfg.default_action
     end, 1)
+end
+
+---@private
+---Callback for hijacked netrw instance
+function Lf:__callback_hijack()
+    if self.cfg.tmux then
+        utils.tmux(false)
+    end
+
+    -- Process selection just like normal callback
+    if uv.fs_stat(self.tmp_sel) then
+        -- Read selections
+        local lines = {}
+        for line in io.lines(self.tmp_sel) do
+            table.insert(lines, line)
+        end
+        
+        if #lines > 0 then
+            -- We have selections, open them
+            -- Since we are in the terminal buffer, we need to edit the first file
+            -- to replace the terminal, then add the rest
+            
+            local first = table.remove(lines, 1)
+            cmd(("edit %s"):format(fn.fnameescape(first)))
+            
+            -- Add remaining files to arglist if any
+            if #lines > 0 then
+                for _, fname in ipairs(lines) do
+                    cmd.argadd(fn.fnameescape(fname))
+                end
+            end
+        else
+            -- No selection (quit), close buffer which closes window if it's the only one
+             if #api.nvim_list_wins() == 1 then
+                cmd("quit")
+            else
+                -- If there are other windows, just wipe this buffer to close the "explorer"
+                cmd("bdelete!") 
+            end
+        end
+    else
+        -- Exit code/Signal logic? mostly just quit
+         if #api.nvim_list_wins() == 1 then
+            cmd("quit")
+        else
+            cmd("bdelete!") 
+        end
+    end
+    
+    -- Cleanup temp files
+    uv.fs_unlink(self.tmp_id)
+    uv.fs_unlink(self.tmp_lastdir)
+    uv.fs_unlink(self.tmp_sel)
 end
 
 ---@private

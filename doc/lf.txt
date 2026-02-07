@@ -19,7 +19,7 @@ Configuration                                           |lf-configuration|
 INTRODUCTION                                            *lf-introduction*
 
 `lf.nvim` is a plugin written in Lua that allows you to use the
-`lf` <https://github.com/gokechan/lf> file manager inside of Neovim.
+`lf` <https://github.com/gokcehan/lf> file manager inside of Neovim.
 
 There is a similar plugin `lf.vim` <https://github.com/ptzz/lf.vim> which
 basically does the same thing, except that is is written in Vimscript.
@@ -29,7 +29,7 @@ Since this plugin uses the Neovim window API, Vim is not supported.
 ================================================================================
 REQUIREMENTS                                            *lf-requirements*
 
-1. `lf` (https://github.com/gokechan/lf)
+1. `lf` (https://github.com/gokcehan/lf)
 2. `toggleterm.nvim` (https://github.com/akinsho/toggleterm.nvim)
 
 ================================================================================

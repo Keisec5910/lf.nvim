@@ -62,31 +62,28 @@ local default = {
 ---@param cfg Lf.Config existing configuration options
 ---@return Lf.Config
 local function validate(cfg)
-    vim.validate({
-        default_cmd = {cfg.default_cmd, "s", false},
-        default_action = {cfg.default_action, "s", false},
-        default_actions = {cfg.default_actions, "t", false},
-        winblend = {cfg.winblend, {"n", "s"}, false},
-        dir = {cfg.dir, "s", false},
-        direction = {cfg.direction, "s", false},
-        border = {cfg.border, {"s", "t"}, false},
-        height = {cfg.height, {"n", "s"}, false},
-        width = {cfg.width, {"n", "s"}, false},
-        escape_quit = {cfg.escape_quit, "b", false},
-        focus_on_open = {cfg.focus_on_open, "b", false},
-        mappings = {cfg.mappings, "b", false},
-        tmux = {cfg.tmux, "b", false},
-        default_file_manager = {cfg.default_file_manager, "b", false},
-        disable_netrw_warning = {cfg.disable_netrw_warning, "b", false},
-        highlights = {cfg.highlights, "t", false},
-        count = {cfg.count, "n", true},
-        env = {cfg.env, "t", false},
-        env_vars = {cfg.env.vars, "t", false},
-        env_clear = {cfg.env.clear, "b", false},
-        -- Layout configurations
-        layout_mapping = {cfg.layout_mapping, "s", false},
-        views = {cfg.views, "t", false},
-    })
+    vim.validate("default_cmd", cfg.default_cmd, "string", false)
+    vim.validate("default_action", cfg.default_action, "string", false)
+    vim.validate("default_actions", cfg.default_actions, "table", false)
+    vim.validate("winblend", cfg.winblend, {"number", "string"}, false)
+    vim.validate("dir", cfg.dir, "string", false)
+    vim.validate("direction", cfg.direction, "string", false)
+    vim.validate("border", cfg.border, {"string", "table"}, false)
+    vim.validate("height", cfg.height, {"number", "string"}, false)
+    vim.validate("width", cfg.width, {"number", "string"}, false)
+    vim.validate("escape_quit", cfg.escape_quit, "boolean", false)
+    vim.validate("focus_on_open", cfg.focus_on_open, "boolean", false)
+    vim.validate("mappings", cfg.mappings, "boolean", false)
+    vim.validate("tmux", cfg.tmux, "boolean", false)
+    vim.validate("default_file_manager", cfg.default_file_manager, "boolean", false)
+    vim.validate("disable_netrw_warning", cfg.disable_netrw_warning, "boolean", false)
+    vim.validate("highlights", cfg.highlights, "table", false)
+    vim.validate("count", cfg.count, "number", true)
+    vim.validate("env", cfg.env, "table", false)
+    vim.validate("env_vars", cfg.env.vars, "table", false)
+    vim.validate("env_clear", cfg.env.clear, "boolean", false)
+    vim.validate("layout_mapping", cfg.layout_mapping, "string", false)
+    vim.validate("views", cfg.views, "table", false)
 
     cfg.winblend = tonumber(cfg.winblend) --[[@as number]]
     cfg.height = tonumber(cfg.height) --[[@as number]]
@@ -103,6 +100,18 @@ function Config:override(cfg)
         self.data = validate(self.data)
     end
     return self.data
+end
+
+---Merge a configuration without updating the global state
+---@param cfg? Lf.Config configuration options
+---@return Lf.Config
+function Config:merge(cfg)
+    local data = vim.deepcopy(self.data)
+    if type(cfg) == "table" then
+        data = vim.tbl_deep_extend("force", data, cfg) --[[@as Lf.Config]]
+        data = validate(data)
+    end
+    return data
 end
 
 ---Return the configuration

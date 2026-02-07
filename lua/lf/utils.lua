@@ -1,6 +1,6 @@
 local M = {}
 
-local uv = vim.loop
+local uv = vim.uv
 local fn = vim.fn
 local api = vim.api
 local levels = vim.log.levels
@@ -69,17 +69,6 @@ function M.read_file(path)
     local buffer = assert(uv.fs_read(fd, stat.size, 0))
     uv.fs_close(fd)
     return buffer, stat
-end
-
----Create a neovim keybinding
----@param mode string vim mode in a single letter
----@param lhs string keys that are bound
----@param rhs string|function string or lua function that is mapped to the keys
----@param opts table? options set for the mapping
-function M.map(mode, lhs, rhs, opts)
-    opts = opts or {}
-    opts.noremap = opts.noremap == nil and true or opts.noremap
-    vim.keymap.set(mode, lhs, rhs, opts)
 end
 
 ---Get Neovim window height
@@ -193,31 +182,6 @@ function M.tmux(disable)
         fn.system([[tmux set status on]])
         fn.system([[tmux list-panes -F '\#F' | grep -q Z && tmux resize-pane -Z]])
     end
-end
-
---  ╭──────────────────────────────────────────────────────────╮
---  │                    vim.fs replacement                    │
---  ╰──────────────────────────────────────────────────────────╯
-
-M.fs = {}
-
----Return basename of the given file entry
----
----@param file string: File or directory
----@return string: Basename of `file`
-function M.fs.basename(file)
-    return fn.fnamemodify(file, ":t")
-end
-
----Return parent directory of the given file entry
----
----@param file string: File or directory
----@return string?: Parent directory of file
-function M.fs.dirname(file)
-    if file == nil then
-        return nil
-    end
-    return fn.fnamemodify(file, ":h")
 end
 
 return M

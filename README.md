@@ -9,27 +9,16 @@ It is very similar to [`lf.vim`](https://github.com/ptzz/lf.vim), except for tha
 ```lua
 -- Sample configuration is supplied
 use({
-    "lmburns/lf.nvim",
-    config = function()
-        -- This feature will not work if the plugin is lazy-loaded
-        vim.g.lf_netrw = 1
-
-        require("lf").setup({
-            escape_quit = false,
-            border = "rounded",
-        })
-
-        vim.keymap.set("n", "<M-o>", "<Cmd>Lf<CR>")
-
-        vim.api.nvim_create_autocmd({
-            event = "User",
-            pattern = "LfTermEnter",
-            callback = function(a)
-                vim.api.nvim_buf_set_keymap(a.buf, "t", "q", "q", {nowait = true})
-            end,
-        })
-    end,
-    requires = {"toggleterm.nvim"}
+    "Keisec5910/lf.nvim",
+    opts = {
+		escape_quit = false,
+		border = "rounded",
+		default_file_manager = true,
+	},
+	keys = {
+		{ "<M-o>", "<Cmd>Lf<CR>" },
+	},
+    dependencies = {"akinsho/toggleterm.nvim")
 })
 ```
 
@@ -58,7 +47,7 @@ require("lf").setup({
   focus_on_open = true, -- focus the current file when opening Lf (experimental)
   mappings = true, -- whether terminal buffer mapping is enabled
   tmux = false, -- tmux statusline can be disabled on opening of Lf
-  default_file_manager = false, -- make lf default file manager
+  default_file_manager = false, -- make lf default file manager (opens full screen in directories)
   disable_netrw_warning = true, -- don't display a message when opening a directory with `default_file_manager` as true
   highlights = { -- highlights passed to toggleterm
     Normal = {link = "Normal"},
@@ -154,8 +143,18 @@ require("lf").start({mappings = false})
 ```
 
 ### Replacing Netrw
-The only configurable environment variable is `g:lf_netrw`, which can be set to `1` or `true` to replace `netrw`.
-Also, note that this option will not work if `lf` is lazy-loaded.
+To make `lf` your default file manager (replacing Netrw), simply set `default_file_manager = true` in the setup options.
+
+When enabled:
+- Opening a directory (e.g., `nvim .` or `:e src/`) will open `lf` in the **current window** (full screen), mimicking a standard buffer.
+- `lf` will take over the directory buffer.
+- Quitting `lf` in this mode will close the window/buffer.
+
+Note: This option will not work if the plugin is lazy-loaded.
+
+### Window Modes (`direction`)
+- **`float`** (default): Opens `lf` in a floating window.
+- **`horizontal` / `vertical`**: Opens `lf` in a split.
 
 ### Key mappings
 The mappings that are listed in the `setup` call above are the default bindings.
@@ -169,9 +168,3 @@ The mappings that are listed in the `setup` call above are the default bindings.
 ### Notes
 The `autocmd` `LfTermEnter` is fired when the terminal buffer first opens
 
-### TODO
-- [ ] Set custom filetype
-- [ ] `:LfToggle` command
-- [ ] Save previous size when terminal is closed, so it is restored on open
-- [ ] Set Lualine to `Lf` title
-- [ ] Fix weird wrapping error that occurs every so often when moving down a list of files
